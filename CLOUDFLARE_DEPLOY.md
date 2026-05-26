@@ -4,11 +4,19 @@
 
 1. Push this folder to a private GitHub repository.
 2. In Cloudflare, open `Workers & Pages`.
-3. Create a Pages project from the GitHub repository.
-4. Use these build settings:
+3. Create an application from the GitHub repository.
+4. If the setup screen shows `Build command` and `Deploy command`, use:
+   - Build command: `npm run build`
+   - Deploy command: `npx wrangler deploy`
+   - Production branch: `main`
+
+The deploy command reads `wrangler.jsonc`, which publishes only the generated
+`dist/` folder as static assets.
+
+If Cloudflare shows the older Pages setup with `Build output directory`, use:
    - Framework preset: `None`
-   - Build command: empty
-   - Build output directory: `/`
+   - Build command: `npm run build`
+   - Build output directory: `dist`
    - Production branch: `main`
 
 Cloudflare Pages has a 25 MiB single-file asset limit on the Free plan. The

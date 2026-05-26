@@ -1,9 +1,10 @@
 {
-  "name": "new-chat",
+  "name": "local-mosaic-access",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
   "scripts": {
+    "build": "node scripts/build-static.js",
     "test": "node --check app.js && node --check server.js",
     "start": "node server.js",
     "start:lan": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"$env:HOST='0.0.0.0'; node server.js\""
