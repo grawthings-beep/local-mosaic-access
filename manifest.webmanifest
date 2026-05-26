@@ -1,0 +1,8 @@
+{
+  "name": "Local Mosaic",
+  "short_name": "Mosaic",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f1",
+  "theme_color": "#0f766e"
+}
