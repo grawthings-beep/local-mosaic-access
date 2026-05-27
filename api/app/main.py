@@ -55,7 +55,7 @@ def health() -> dict[str, object]:
     }
 
 
-@app.post("/mosaic")
+@app.post("/mosaic", response_model=None)
 async def mosaic_endpoint(
     _: Annotated[None, Depends(require_token)],
     file: Annotated[UploadFile, File()],
@@ -65,7 +65,7 @@ async def mosaic_endpoint(
     block_size: Annotated[int, Form()] = 24,
     padding: Annotated[float, Form()] = 0.45,
     response_format: Annotated[str, Form()] = "image",
-) -> Response | dict[str, object]:
+):
     started = time.perf_counter()
     raw = await file.read()
     if not raw:
