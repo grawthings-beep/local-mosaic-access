@@ -3,7 +3,5 @@ uvicorn[standard]==0.34.0
 python-multipart==0.0.20
 pillow==11.1.0
 requests==2.32.3
-dghs-imgutils[gpu]==0.19.0
-nudenet==3.4.2
 ultralytics==8.3.75
-huggingface_hub==0.27.1
+huggingface_hub>=0.31.0

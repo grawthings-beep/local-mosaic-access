@@ -4,10 +4,10 @@ FastAPI service for server-side automatic mosaic processing.
 
 ## Engines
 
-- `anime`: `dghs-imgutils` censor detector for anime/AI illustration censor points.
-- `nudenet`: NudeNet detector, preferably with the external `640m.onnx` model.
 - `erax`: EraX YOLO11 detector. This is the default engine and is filtered to
   genital classes only.
+- `anime`: optional `dghs-imgutils` censor detector.
+- `nudenet`: optional NudeNet detector.
 
 The service receives one image, detects target regions, expands bounding boxes,
 burns pixel mosaic into the image, and returns a PNG. Uploaded bytes are kept in
