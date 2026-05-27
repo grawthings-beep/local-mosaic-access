@@ -73,3 +73,11 @@ Python packages are installed into:
 ```
 
 This avoids conflicts with packages preinstalled by the RunPod template.
+
+The default GPU engine is EraX YOLO11 with only these labels enabled:
+
+```text
+penis,vagina
+```
+
+Face, breast, nipple, butt, and anus labels are excluded by default.

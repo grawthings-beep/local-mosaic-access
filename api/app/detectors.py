@@ -13,12 +13,11 @@ from .mosaic import Detection, clamp_box, merge_detections
 NUDENET_TARGET_CLASSES = {
     "FEMALE_GENITALIA_EXPOSED",
     "MALE_GENITALIA_EXPOSED",
-    "ANUS_EXPOSED",
 }
 
-ANIME_TARGET_CLASSES = {
+ERAX_TARGET_CLASSES = {
     "penis",
-    "pussy",
+    "vagina",
 }
 
 
@@ -34,12 +33,60 @@ def detect_all(
     target_set = _target_set(targets)
     detections: list[Detection] = []
 
+    if "erax" in selected:
+        detections.extend(detect_erax(image, confidence, tile_grid, target_set))
     if "anime" in selected:
         detections.extend(detect_anime_censors(image, confidence, tile_grid, target_set))
     if "nudenet" in selected:
         detections.extend(detect_nudenet(image, confidence, tile_grid, target_set))
 
     return merge_detections(detections, width, height)
+
+
+def detect_erax(
+    image: Image.Image,
+    confidence: float,
+    tile_grid: int,
+    target_set: set[str],
+) -> list[Detection]:
+    model = _load_erax_detector()
+    if model is None:
+        return []
+
+    detections: list[Detection] = []
+    for crop, offset in _iter_crops(image, tile_grid):
+        try:
+            results = model.predict(
+                source=crop.convert("RGB"),
+                imgsz=int(os.getenv("ERAX_IMAGE_SIZE", "640")),
+                conf=confidence,
+                verbose=False,
+                device=os.getenv("YOLO_DEVICE", None),
+            )
+        except Exception:
+            continue
+
+        ox, oy = offset
+        for result in results:
+            names = result.names
+            if result.boxes is None:
+                continue
+            for box in result.boxes:
+                cls = int(box.cls[0])
+                label = str(names.get(cls, cls))
+                if label not in target_set and label.lower() not in target_set:
+                    continue
+                score = float(box.conf[0])
+                x0, y0, x1, y1 = [int(round(value)) for value in box.xyxy[0].tolist()]
+                detections.append(
+                    Detection(
+                        box=(x0 + ox, y0 + oy, x1 + ox, y1 + oy),
+                        label=label,
+                        score=score,
+                        engine="erax",
+                    )
+                )
+    return detections
 
 
 def detect_anime_censors(
@@ -135,6 +182,24 @@ def _iter_crops(image: Image.Image, tile_grid: int) -> Iterable[tuple[Image.Imag
 
 
 @lru_cache(maxsize=1)
+def _load_erax_detector():
+    try:
+        from ultralytics import YOLO
+    except Exception:
+        return None
+
+    model_path = os.getenv("ERAX_MODEL_PATH", "/workspace/models/erax/erax-anti-nsfw-yolo11s-v1.1.pt")
+    if not os.path.exists(model_path):
+        try:
+            from .download_models import download_erax_model
+
+            model_path = str(download_erax_model())
+        except Exception:
+            return None
+    return YOLO(model_path)
+
+
+@lru_cache(maxsize=1)
 def _load_anime_detector():
     try:
         from imgutils.detect import detect_censors
@@ -190,4 +255,4 @@ def _target_set(targets: Iterable[str] | None) -> set[str]:
     if override:
         return {item.strip() for item in override.split(",") if item.strip()}
 
-    return ANIME_TARGET_CLASSES | _target_classes()
+    return ERAX_TARGET_CLASSES | _target_classes()

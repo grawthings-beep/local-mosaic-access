@@ -59,11 +59,11 @@ def health() -> dict[str, object]:
 async def mosaic_endpoint(
     _: Annotated[None, Depends(require_token)],
     file: Annotated[UploadFile, File()],
-    engines: Annotated[str, Form()] = "anime,nudenet",
+    engines: Annotated[str, Form()] = "erax",
     confidence: Annotated[float, Form()] = 0.45,
     tile_grid: Annotated[int, Form()] = 1,
     block_size: Annotated[int, Form()] = 24,
-    padding: Annotated[float, Form()] = 0.08,
+    padding: Annotated[float, Form()] = 0.05,
     targets: Annotated[str, Form()] = "",
     response_format: Annotated[str, Form()] = "image",
 ):

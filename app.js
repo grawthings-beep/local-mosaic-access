@@ -330,21 +330,12 @@ async function runServerMosaic() {
     const inputBlob = await canvasToBlob(state.sourceCanvas, "image/png");
     const form = new FormData();
     form.append("file", inputBlob, state.fileName || "local-mosaic.png");
-    form.append("engines", "anime,nudenet");
+    form.append("engines", "erax");
     form.append("confidence", String(Math.max(0.45, getThreshold())));
     form.append("tile_grid", "1");
     form.append("block_size", String(Math.max(16, Number(els.blockRange.value) || 28)));
-    form.append("padding", els.presetSelect.value === "wide" ? "0.2" : els.presetSelect.value === "strict" ? "0.12" : "0.08");
-    form.append(
-      "targets",
-      [
-        "penis",
-        "pussy",
-        "FEMALE_GENITALIA_EXPOSED",
-        "MALE_GENITALIA_EXPOSED",
-        "ANUS_EXPOSED",
-      ].join(","),
-    );
+    form.append("padding", els.presetSelect.value === "wide" ? "0.1" : els.presetSelect.value === "strict" ? "0.06" : "0.05");
+    form.append("targets", "penis,vagina");
 
     const response = await fetch(new URL("api/mosaic", BASE_URL), {
       method: "POST",
