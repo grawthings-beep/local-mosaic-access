@@ -331,10 +331,20 @@ async function runServerMosaic() {
     const form = new FormData();
     form.append("file", inputBlob, state.fileName || "local-mosaic.png");
     form.append("engines", "anime,nudenet");
-    form.append("confidence", String(Math.max(0.12, getThreshold())));
-    form.append("tile_grid", "2");
+    form.append("confidence", String(Math.max(0.45, getThreshold())));
+    form.append("tile_grid", "1");
     form.append("block_size", String(Math.max(16, Number(els.blockRange.value) || 28)));
-    form.append("padding", els.presetSelect.value === "wide" ? "0.72" : els.presetSelect.value === "strict" ? "0.56" : "0.45");
+    form.append("padding", els.presetSelect.value === "wide" ? "0.2" : els.presetSelect.value === "strict" ? "0.12" : "0.08");
+    form.append(
+      "targets",
+      [
+        "penis",
+        "pussy",
+        "FEMALE_GENITALIA_EXPOSED",
+        "MALE_GENITALIA_EXPOSED",
+        "ANUS_EXPOSED",
+      ].join(","),
+    );
 
     const response = await fetch(new URL("api/mosaic", BASE_URL), {
       method: "POST",
@@ -353,7 +363,7 @@ async function runServerMosaic() {
       .replace(/_mosaic\.png$/i, "")
       .replace(/\.[^.]+$/i, "");
     loadBitmap(bitmap, baseName || "local-mosaic", { skipAutoDetect: true });
-    setStatus(`GPU自動モザイク完了: ${detections.length} 件`);
+    setStatus(`GPU自動モザイク完了: ${formatDetectionSummary(detections)}`);
   } catch (error) {
     console.error(error);
     setStatus(`GPU自動モザイク失敗: ${error.message || error}`);
@@ -380,6 +390,16 @@ function parseDetectionsHeader(value) {
   } catch {
     return [];
   }
+}
+
+function formatDetectionSummary(detections) {
+  if (!detections.length) return "0 件";
+  const labels = detections
+    .map((item) => item.label)
+    .filter(Boolean)
+    .slice(0, 4)
+    .join(", ");
+  return labels ? `${detections.length} 件 (${labels})` : `${detections.length} 件`;
 }
 
 function nextFrame() {

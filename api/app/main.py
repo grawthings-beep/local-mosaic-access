@@ -60,10 +60,11 @@ async def mosaic_endpoint(
     _: Annotated[None, Depends(require_token)],
     file: Annotated[UploadFile, File()],
     engines: Annotated[str, Form()] = "anime,nudenet",
-    confidence: Annotated[float, Form()] = 0.24,
-    tile_grid: Annotated[int, Form()] = 2,
+    confidence: Annotated[float, Form()] = 0.45,
+    tile_grid: Annotated[int, Form()] = 1,
     block_size: Annotated[int, Form()] = 24,
-    padding: Annotated[float, Form()] = 0.45,
+    padding: Annotated[float, Form()] = 0.08,
+    targets: Annotated[str, Form()] = "",
     response_format: Annotated[str, Form()] = "image",
 ):
     started = time.perf_counter()
@@ -85,6 +86,7 @@ async def mosaic_endpoint(
         engines=selected_engines,
         confidence=max(0.01, min(0.95, float(confidence))),
         tile_grid=max(1, min(4, int(tile_grid))),
+        targets=targets.split(","),
     )
     output = apply_mosaic(
         image=image,

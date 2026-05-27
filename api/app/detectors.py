@@ -14,7 +14,11 @@ NUDENET_TARGET_CLASSES = {
     "FEMALE_GENITALIA_EXPOSED",
     "MALE_GENITALIA_EXPOSED",
     "ANUS_EXPOSED",
-    "FEMALE_BREAST_EXPOSED",
+}
+
+ANIME_TARGET_CLASSES = {
+    "penis",
+    "pussy",
 }
 
 
@@ -23,20 +27,27 @@ def detect_all(
     engines: Iterable[str],
     confidence: float,
     tile_grid: int,
+    targets: Iterable[str] | None = None,
 ) -> list[Detection]:
     width, height = image.size
     selected = {engine.strip().lower() for engine in engines if engine.strip()}
+    target_set = _target_set(targets)
     detections: list[Detection] = []
 
     if "anime" in selected:
-        detections.extend(detect_anime_censors(image, confidence, tile_grid))
+        detections.extend(detect_anime_censors(image, confidence, tile_grid, target_set))
     if "nudenet" in selected:
-        detections.extend(detect_nudenet(image, confidence, tile_grid))
+        detections.extend(detect_nudenet(image, confidence, tile_grid, target_set))
 
     return merge_detections(detections, width, height)
 
 
-def detect_anime_censors(image: Image.Image, confidence: float, tile_grid: int) -> list[Detection]:
+def detect_anime_censors(
+    image: Image.Image,
+    confidence: float,
+    tile_grid: int,
+    target_set: set[str],
+) -> list[Detection]:
     detector = _load_anime_detector()
     if detector is None:
         return []
@@ -50,11 +61,14 @@ def detect_anime_censors(image: Image.Image, confidence: float, tile_grid: int) 
 
         ox, oy = offset
         for box, label, score in results:
+            label = str(label)
+            if label not in target_set:
+                continue
             x0, y0, x1, y1 = box
             detections.append(
                 Detection(
                     box=(x0 + ox, y0 + oy, x1 + ox, y1 + oy),
-                    label=str(label),
+                    label=label,
                     score=float(score),
                     engine="anime",
                 )
@@ -62,13 +76,17 @@ def detect_anime_censors(image: Image.Image, confidence: float, tile_grid: int) 
     return detections
 
 
-def detect_nudenet(image: Image.Image, confidence: float, tile_grid: int) -> list[Detection]:
+def detect_nudenet(
+    image: Image.Image,
+    confidence: float,
+    tile_grid: int,
+    target_set: set[str],
+) -> list[Detection]:
     detector = _load_nudenet_detector()
     if detector is None:
         return []
 
     detections: list[Detection] = []
-    target_classes = _target_classes()
     for crop, offset in _iter_crops(image, tile_grid):
         try:
             results = detector.detect(_image_to_jpeg_bytes(crop))
@@ -79,7 +97,7 @@ def detect_nudenet(image: Image.Image, confidence: float, tile_grid: int) -> lis
         for item in results:
             label = str(item.get("class", ""))
             score = float(item.get("score", 0.0))
-            if label not in target_classes or score < confidence:
+            if label not in target_set or score < confidence:
                 continue
             x, y, w, h = item.get("box", [0, 0, 0, 0])
             detections.append(
@@ -160,3 +178,16 @@ def _target_classes() -> set[str]:
     if not override:
         return NUDENET_TARGET_CLASSES
     return {item.strip() for item in override.split(",") if item.strip()}
+
+
+def _target_set(targets: Iterable[str] | None) -> set[str]:
+    if targets:
+        parsed = {target.strip() for target in targets if target.strip()}
+        if parsed:
+            return parsed
+
+    override = os.getenv("MOSAIC_TARGET_CLASSES", "").strip()
+    if override:
+        return {item.strip() for item in override.split(",") if item.strip()}
+
+    return ANIME_TARGET_CLASSES | _target_classes()
