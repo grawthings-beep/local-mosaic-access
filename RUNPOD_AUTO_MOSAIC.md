@@ -65,3 +65,11 @@ The startup script stores models under:
 
 If `/workspace` is a Network Volume, the next Pod start reuses the downloaded
 models and avoids the long first download.
+
+Python packages are installed into:
+
+```text
+/workspace/local-mosaic-venv
+```
+
+This avoids conflicts with packages preinstalled by the RunPod template.

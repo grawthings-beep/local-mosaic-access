@@ -41,6 +41,9 @@ bash scripts/start_runpod.sh
 For faster future starts, attach a RunPod Network Volume and keep `/workspace`.
 The model cache under `/workspace/models` will be reused.
 
+The startup script creates a virtual environment at `/workspace/local-mosaic-venv`
+to avoid conflicts with Debian-managed Python packages in RunPod templates.
+
 ## Docker
 
 ```bash
