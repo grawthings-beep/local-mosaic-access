@@ -57,7 +57,7 @@ setupOnnxRuntime();
 updateThresholdValue();
 updateOnnxStatus();
 autoLoadDefaultModel();
-registerServiceWorker();
+cleanupServiceWorker();
 
 els.openButton.addEventListener("click", () => els.fileInput.click());
 els.demoButton.addEventListener("click", loadDemoImage);
@@ -135,12 +135,18 @@ function setupOnnxRuntime() {
   state.onnx.runtimeReady = true;
 }
 
-function registerServiceWorker() {
-  if (!("serviceWorker" in navigator)) return;
+function cleanupServiceWorker() {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register(new URL("sw.js", BASE_URL)).catch((error) => {
-      console.warn(error);
-    });
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations()
+        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+        .catch((error) => console.warn(error));
+    }
+    if ("caches" in window) {
+      caches.keys()
+        .then((keys) => Promise.all(keys.filter((key) => key.startsWith("local-mosaic")).map((key) => caches.delete(key))))
+        .catch((error) => console.warn(error));
+    }
   });
 }
 

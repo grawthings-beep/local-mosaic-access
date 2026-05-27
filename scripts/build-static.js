@@ -51,4 +51,25 @@ for (const entry of entries) {
   copyEntry(entry);
 }
 
+inlineCriticalAssets();
+
 console.log(`Static assets copied to ${path.relative(root, outDir)}`);
+
+function inlineCriticalAssets() {
+  const indexPath = path.join(outDir, "index.html");
+  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const app = fs
+    .readFileSync(path.join(root, "app.js"), "utf8")
+    .replace(/<\/script/gi, "<\\/script");
+
+  let html = fs.readFileSync(indexPath, "utf8");
+  html = html.replace(
+    /<link rel="stylesheet" href="\.\/styles\.css" \/>/,
+    `<style>\n${css}\n</style>`,
+  );
+  html = html.replace(
+    /<script src="\.\/app\.js\?v=\d+"><\/script>/,
+    `<script>\n${app}\n</script>`,
+  );
+  fs.writeFileSync(indexPath, html);
+}
