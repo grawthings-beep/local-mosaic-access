@@ -11,7 +11,8 @@
    - Production branch: `main`
 
 The deploy command reads `wrangler.jsonc`, which publishes only the generated
-`dist/` folder as static assets.
+`dist/` folder as static assets. It also deploys `src/worker.js`, which proxies
+`/api/mosaic` to the RunPod auto mosaic API.
 
 If Cloudflare shows the older Pages setup with `Build output directory`, use:
    - Framework preset: `None`
@@ -21,6 +22,18 @@ If Cloudflare shows the older Pages setup with `Build output directory`, use:
 
 Cloudflare Pages has a 25 MiB single-file asset limit on the Free plan. The
 deployable runtime files under `vendor/` are below that limit.
+
+## RunPod API variables
+
+After the RunPod API is running, set these in Cloudflare:
+
+`Workers & Pages` > `local-mosaic-access` > `Settings` > `Variables and Secrets`
+
+- `MOSAIC_API_URL`: RunPod public URL, such as `https://xxxx-8000.proxy.runpod.net`
+- `MOSAIC_API_TOKEN`: a long random token. Set the same value on RunPod.
+
+The browser posts to `/api/mosaic`. The Worker adds the private token server-side
+before forwarding to RunPod.
 
 ## Access
 

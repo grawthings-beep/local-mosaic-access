@@ -1,0 +1,1 @@
+"""Automatic mosaic API package."""

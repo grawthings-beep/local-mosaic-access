@@ -1,7 +1,7 @@
 const BASE_URL = new URL("./", document.baseURI);
 const DEFAULT_MODEL_PATH = new URL("models/nudenet-320n.onnx", BASE_URL).href;
 const DEFAULT_MODEL_NAME = "NudeNet 320n";
-const TARGET_CLASS_IDS = [4, 6, 14];
+const TARGET_CLASS_IDS = [2, 3, 4, 6, 14];
 
 const state = {
   sourceCanvas: document.createElement("canvas"),
@@ -12,6 +12,7 @@ const state = {
   drag: null,
   nextId: 1,
   detecting: false,
+  serverProcessing: false,
   onnx: {
     runtimeReady: false,
     session: null,
@@ -28,6 +29,7 @@ const els = {
   demoButton: document.getElementById("demoButton"),
   modelButton: document.getElementById("modelButton"),
   autoButton: document.getElementById("autoButton"),
+  serverButton: document.getElementById("serverButton"),
   deleteButton: document.getElementById("deleteButton"),
   clearButton: document.getElementById("clearButton"),
   downloadButton: document.getElementById("downloadButton"),
@@ -76,6 +78,7 @@ els.modelInput.addEventListener("change", () => {
   if (file) loadOnnxModel(file);
 });
 els.autoButton.addEventListener("click", runAutoDetect);
+els.serverButton.addEventListener("click", runServerMosaic);
 els.deleteButton.addEventListener("click", deleteSelectedMask);
 els.clearButton.addEventListener("click", clearMasks);
 els.downloadButton.addEventListener("click", downloadImage);
@@ -231,7 +234,7 @@ async function installOnnxSession(buffer, name) {
   updateOnnxStatus();
 }
 
-function loadBitmap(bitmap, name) {
+function loadBitmap(bitmap, name, options = {}) {
   const maxSide = 4200;
   const ratio = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * ratio));
@@ -253,7 +256,7 @@ function loadBitmap(bitmap, name) {
   els.dropZone.classList.add("has-image");
   els.emptyState.style.display = "none";
   setEnabled(true);
-  if (els.autoAfterLoad.checked) {
+  if (els.autoAfterLoad.checked && !options.skipAutoDetect) {
     runAutoDetect();
   } else {
     drawAll();
@@ -262,10 +265,12 @@ function loadBitmap(bitmap, name) {
 }
 
 function setEnabled(enabled) {
-  els.autoButton.disabled = !enabled || state.detecting;
-  els.downloadButton.disabled = !enabled || state.detecting;
-  els.clearButton.disabled = !enabled || state.masks.length === 0 || state.detecting;
-  els.deleteButton.disabled = !enabled || !state.selectedId || state.detecting;
+  const busy = state.detecting || state.serverProcessing;
+  els.autoButton.disabled = !enabled || busy;
+  els.serverButton.disabled = !enabled || busy;
+  els.downloadButton.disabled = !enabled || busy;
+  els.clearButton.disabled = !enabled || state.masks.length === 0 || busy;
+  els.deleteButton.disabled = !enabled || !state.selectedId || busy;
 }
 
 function setStatus(text) {
@@ -280,16 +285,19 @@ async function runAutoDetect() {
 
   try {
     await nextFrame();
-    let boxes;
-    let source;
+    let candidates;
     if (state.onnx.session) {
-      boxes = await detectWithOnnx();
-      source = "onnx";
+      const onnxBoxes = await detectWithOnnx();
+      const fallbackBoxes = detectSensitiveCandidates();
+      candidates = mergeCandidateSources(
+        onnxBoxes.map((box) => ({ box, source: "onnx" })),
+        fallbackBoxes.map((box) => ({ box, source: "auto" })),
+        onnxBoxes.length === 0 ? 0.1 : 0.35,
+      );
     } else {
-      boxes = detectSensitiveCandidates();
-      source = "auto";
+      candidates = detectSensitiveCandidates().map((box) => ({ box, source: "auto" }));
     }
-    state.masks = boxes.map((box) => createMask(box, source));
+    state.masks = candidates.map((candidate) => createMask(candidate.box, candidate.source));
     state.selectedId = state.masks[0]?.id ?? null;
     drawAll();
     setStatus(`${state.masks.length} 件の候補`);
@@ -306,8 +314,81 @@ async function runAutoDetect() {
   }
 }
 
+async function runServerMosaic() {
+  if (!hasImage() || state.serverProcessing) return;
+  state.serverProcessing = true;
+  setEnabled(false);
+  setStatus("GPU自動モザイク中");
+
+  try {
+    const inputBlob = await canvasToBlob(state.sourceCanvas, "image/png");
+    const form = new FormData();
+    form.append("file", inputBlob, state.fileName || "local-mosaic.png");
+    form.append("engines", "anime,nudenet");
+    form.append("confidence", String(Math.max(0.12, getThreshold())));
+    form.append("tile_grid", "2");
+    form.append("block_size", String(Math.max(16, Number(els.blockRange.value) || 28)));
+    form.append("padding", els.presetSelect.value === "wide" ? "0.72" : els.presetSelect.value === "strict" ? "0.56" : "0.45");
+
+    const response = await fetch(new URL("api/mosaic", BASE_URL), {
+      method: "POST",
+      body: form,
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || `HTTP ${response.status}`);
+    }
+
+    const detections = parseDetectionsHeader(response.headers.get("X-Mosaic-Detections"));
+    const outputBlob = await response.blob();
+    const bitmap = await createImageBitmap(outputBlob);
+    const baseName = (state.fileName || "local-mosaic.png")
+      .replace(/_mosaic\.png$/i, "")
+      .replace(/\.[^.]+$/i, "");
+    loadBitmap(bitmap, baseName || "local-mosaic", { skipAutoDetect: true });
+    setStatus(`GPU自動モザイク完了: ${detections.length} 件`);
+  } catch (error) {
+    console.error(error);
+    setStatus(`GPU自動モザイク失敗: ${error.message || error}`);
+  } finally {
+    state.serverProcessing = false;
+    setEnabled(hasImage());
+  }
+}
+
+function canvasToBlob(canvas, type) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("画像変換失敗"));
+    }, type);
+  });
+}
+
+function parseDetectionsHeader(value) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function nextFrame() {
   return new Promise((resolve) => window.requestAnimationFrame(resolve));
+}
+
+function mergeCandidateSources(primary, fallback, maxOverlap) {
+  const candidates = [...primary];
+  for (const candidate of fallback) {
+    const overlaps = candidates.some((existing) => boxIou(existing.box, candidate.box) > maxOverlap);
+    if (!overlaps) candidates.push(candidate);
+  }
+  return candidates
+    .sort((a, b) => b.box.w * b.box.h - a.box.w * a.box.h)
+    .slice(0, 64);
 }
 
 function createMask(box, source = "manual") {
