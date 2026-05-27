@@ -19,7 +19,7 @@
         </div>
         <div class="status-row">
           <span id="statusText">画像を開いてください</span>
-          <span id="privacyText">ネットワーク送信なし</span>
+          <span id="privacyText">GPU時のみRunPod送信</span>
         </div>
       </header>
 
@@ -28,10 +28,10 @@
         <input id="modelInput" type="file" accept=".onnx,application/octet-stream" hidden />
         <button id="openButton" type="button">画像を開く</button>
         <button id="demoButton" type="button">デモ</button>
-        <button id="modelButton" type="button">ONNXを読む</button>
-        <button id="autoButton" type="button" disabled>自動検出</button>
-        <button id="serverButton" type="button" disabled>GPU自動</button>
-        <label class="control">
+        <button id="serverButton" type="button" disabled>RunPod自動</button>
+        <button id="autoButton" type="button" class="onnx-control" disabled>ローカル補助</button>
+        <button id="modelButton" type="button" class="onnx-control">ONNXを読む</button>
+        <label class="control onnx-control">
           <span>形式</span>
           <select id="modelFormatSelect">
             <option value="auto">Auto</option>
@@ -40,7 +40,7 @@
             <option value="xyxy">XYXY</option>
           </select>
         </label>
-        <label class="control">
+        <label class="control onnx-control">
           <span>入力</span>
           <select id="onnxSizeSelect">
             <option value="320" selected>320</option>
@@ -89,10 +89,11 @@
           </div>
           <div class="panel-section compact">
             <h2>処理</h2>
+            <div id="serverStatus" class="runtime-status primary-status">RunPod: EraX / 性器のみ</div>
             <div id="onnxStatus" class="runtime-status">ONNX未読込</div>
             <label class="check-row">
-              <input id="autoAfterLoad" type="checkbox" checked />
-              <span>読込時に検出</span>
+              <input id="autoAfterLoad" type="checkbox" />
+              <span>読込時にローカル補助</span>
             </label>
             <label class="check-row">
               <input id="widePadding" type="checkbox" checked />
@@ -102,7 +103,7 @@
           <div class="panel-section compact">
             <h2>メモ</h2>
             <p>
-              自動候補は保守的な補助です。最終出力前に目視で確認してください。
+              主処理はRunPod上のEraXでpenis/vaginaのみを検出します。最終出力前に目視で確認してください。
             </p>
           </div>
         </aside>
@@ -110,6 +111,6 @@
     </main>
 
     <script src="./vendor/onnxruntime-web/ort.wasm.min.js?v=1"></script>
-    <script src="./app.js?v=12"></script>
+    <script src="./app.js?v=13"></script>
   </body>
 </html>

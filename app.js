@@ -2,6 +2,7 @@ const BASE_URL = new URL("./", document.baseURI);
 const DEFAULT_MODEL_PATH = new URL("models/nudenet-320n.onnx", BASE_URL).href;
 const DEFAULT_MODEL_NAME = "NudeNet 320n";
 const TARGET_CLASS_IDS = [2, 3, 4, 6, 14];
+const SERVER_ENGINE_LABEL = "RunPod: EraX / penis,vagina";
 
 const state = {
   sourceCanvas: document.createElement("canvas"),
@@ -42,6 +43,8 @@ const els = {
   autoAfterLoad: document.getElementById("autoAfterLoad"),
   widePadding: document.getElementById("widePadding"),
   statusText: document.getElementById("statusText"),
+  privacyText: document.getElementById("privacyText"),
+  serverStatus: document.getElementById("serverStatus"),
   onnxStatus: document.getElementById("onnxStatus"),
   dropZone: document.getElementById("dropZone"),
   emptyState: document.getElementById("emptyState"),
@@ -56,7 +59,8 @@ const overlayCtx = els.overlayCanvas.getContext("2d");
 setupOnnxRuntime();
 updateThresholdValue();
 updateOnnxStatus();
-autoLoadDefaultModel();
+updateServerStatus(SERVER_ENGINE_LABEL);
+checkServerHealth();
 cleanupServiceWorker();
 
 els.openButton.addEventListener("click", () => els.fileInput.click());
@@ -94,10 +98,10 @@ els.onnxSizeSelect.addEventListener("change", () => {
   if (hasImage() && state.onnx.session) runAutoDetect();
 });
 els.widePadding.addEventListener("change", () => {
-  if (hasImage()) runAutoDetect();
+  if (hasImage() && state.onnx.session) runAutoDetect();
 });
 els.presetSelect.addEventListener("change", () => {
-  if (hasImage()) runAutoDetect();
+  if (hasImage() && state.onnx.session) runAutoDetect();
 });
 
 els.dropZone.addEventListener("dragover", (event) => {
@@ -153,14 +157,32 @@ function cleanupServiceWorker() {
 function updateOnnxStatus() {
   if (!els.onnxStatus) return;
   if (!state.onnx.runtimeReady) {
-    els.onnxStatus.textContent = "ONNX Runtimeなし";
+    els.onnxStatus.textContent = "ローカル補助: ONNX Runtimeなし";
     els.modelButton.disabled = true;
     return;
   }
   els.modelButton.disabled = false;
   els.onnxStatus.textContent = state.onnx.session
-    ? `ONNX: ${state.onnx.modelName}`
-    : "ONNX未読込";
+    ? `ローカルONNX: ${state.onnx.modelName}`
+    : "ローカル補助: 未使用";
+}
+
+function updateServerStatus(text) {
+  if (els.serverStatus) els.serverStatus.textContent = text;
+}
+
+async function checkServerHealth() {
+  if (!els.serverStatus) return;
+  try {
+    const response = await fetch(new URL("api/health", BASE_URL), { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const engines = Array.isArray(data.engines) ? data.engines.join(",") : "erax";
+    updateServerStatus(`RunPod接続OK: ${engines} / 性器のみ`);
+  } catch (error) {
+    console.warn(error);
+    updateServerStatus("RunPod未接続: GPU自動はバックエンド起動後");
+  }
 }
 
 function updateThresholdValue() {
@@ -266,13 +288,13 @@ function loadBitmap(bitmap, name, options = {}) {
     runAutoDetect();
   } else {
     drawAll();
-    setStatus(`${width} x ${height}`);
+    setStatus(`${width} x ${height} / RunPod自動を押してください`);
   }
 }
 
 function setEnabled(enabled) {
   const busy = state.detecting || state.serverProcessing;
-  els.autoButton.disabled = !enabled || busy;
+  els.autoButton.disabled = !enabled || busy || !state.onnx.session;
   els.serverButton.disabled = !enabled || busy;
   els.downloadButton.disabled = !enabled || busy;
   els.clearButton.disabled = !enabled || state.masks.length === 0 || busy;
@@ -285,9 +307,13 @@ function setStatus(text) {
 
 async function runAutoDetect() {
   if (!hasImage() || state.detecting) return;
+  if (!state.onnx.session) {
+    setStatus("ローカルONNX未読込。主処理はRunPod自動を使ってください");
+    return;
+  }
   state.detecting = true;
   setEnabled(false);
-  setStatus(state.onnx.session ? "ONNX検出中" : "自動検出中");
+  setStatus("ローカルONNX検出中");
 
   try {
     await nextFrame();
@@ -324,7 +350,8 @@ async function runServerMosaic() {
   if (!hasImage() || state.serverProcessing) return;
   state.serverProcessing = true;
   setEnabled(false);
-  setStatus("GPU自動モザイク中");
+  setStatus("RunPod / EraXで性器のみ検出中");
+  updateServerStatus("RunPod処理中: EraX / penis,vagina");
 
   try {
     const inputBlob = await canvasToBlob(state.sourceCanvas, "image/png");
@@ -354,10 +381,13 @@ async function runServerMosaic() {
       .replace(/_mosaic\.png$/i, "")
       .replace(/\.[^.]+$/i, "");
     loadBitmap(bitmap, baseName || "local-mosaic", { skipAutoDetect: true });
-    setStatus(`GPU自動モザイク完了: ${formatDetectionSummary(detections)}`);
+    const summary = formatDetectionSummary(detections);
+    setStatus(`RunPod自動モザイク完了: ${summary}`);
+    updateServerStatus(`RunPod接続OK: EraX / ${summary}`);
   } catch (error) {
     console.error(error);
-    setStatus(`GPU自動モザイク失敗: ${error.message || error}`);
+    setStatus(`RunPod自動モザイク失敗: ${error.message || error}`);
+    updateServerStatus("RunPodエラー: URL・Token・Pod起動状態を確認");
   } finally {
     state.serverProcessing = false;
     setEnabled(hasImage());

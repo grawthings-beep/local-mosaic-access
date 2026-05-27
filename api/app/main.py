@@ -50,7 +50,9 @@ def require_token(
 def health() -> dict[str, object]:
     return {
         "ok": True,
-        "engines": ["anime", "nudenet"],
+        "engines": ["erax"],
+        "targets": ["penis", "vagina"],
+        "model": os.path.basename(os.getenv("ERAX_MODEL_PATH", "erax-anti-nsfw-yolo11s-v1.1.pt")),
         "max_upload_mb": round(MAX_UPLOAD_BYTES / 1024 / 1024, 2),
     }
 

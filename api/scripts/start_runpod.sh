@@ -15,6 +15,7 @@ source "$VENV_DIR/bin/activate"
 
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install --ignore-installed "pyparsing>=3.2.1"
+python -m pip uninstall -y dghs-imgutils nudenet imgutils hfutils >/dev/null 2>&1 || true
 python -m pip install -r requirements-gpu.txt
 python -m app.download_models
 

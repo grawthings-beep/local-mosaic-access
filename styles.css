@@ -70,6 +70,7 @@ button:disabled {
 
 #openButton,
 #autoButton,
+#serverButton,
 #downloadButton {
   background: var(--accent);
   border-color: var(--accent);
@@ -78,6 +79,7 @@ button:disabled {
 
 #openButton:hover:not(:disabled),
 #autoButton:hover:not(:disabled),
+#serverButton:hover:not(:disabled),
 #downloadButton:hover:not(:disabled) {
   background: var(--accent-dark);
 }
@@ -166,6 +168,10 @@ h2 {
 .control select {
   min-width: 94px;
   padding: 0 8px;
+}
+
+.onnx-control {
+  display: none;
 }
 
 .range-control input {
@@ -339,6 +345,12 @@ canvas {
   line-height: 1.4;
   padding: 8px 9px;
   word-break: break-word;
+}
+
+.primary-status {
+  color: var(--ink);
+  border-color: rgba(15, 118, 110, 0.28);
+  background: rgba(15, 118, 110, 0.08);
 }
 
 @media (max-width: 920px) {
